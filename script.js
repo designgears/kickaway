@@ -235,6 +235,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let modalChatWinners = [], claimInterval = null, lastClaimWinner = null;
     let pendingAnimationInterval = null; 
 
+    // Remove characters in Unicode block U+E0000..U+E007F (supplementary special-purpose plane - tag characters)
+    const SPECIAL_TAGS_REGEX = /[\u{E0000}-\u{E007F}]/gu;
+    function sanitizeUnicodeTagCharacters(str) {
+        if (typeof str !== 'string') return str;
+        return str.replace(SPECIAL_TAGS_REGEX, '');
+    }
+
     function showScreen(scr) {
         loginScreen.style.display = 'none';
         mainScreen.style.display = 'none';
@@ -407,6 +414,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleChatMessage(msg) {
+        msg.content = sanitizeUnicodeTagCharacters(msg.content || '');
+
         if (lastClaimWinner && msg.sender.username.toLowerCase() === lastClaimWinner.name.toLowerCase()) {
             const li = document.createElement('li');
             li.textContent = `${msg.sender.username}: ${msg.content}`;
