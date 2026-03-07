@@ -255,6 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const rangeInputs = settingsPanel.querySelectorAll('input[type="range"]');
         rangeInputs.forEach(input => input.disabled = disabled);
+        followLengthValue.setAttribute('contenteditable', !disabled);
 
         if (disabled) {
             winnerClaimCheckbox.disabled = true;
@@ -1111,6 +1112,33 @@ document.addEventListener('DOMContentLoaded', () => {
         subMultiplierSlider.addEventListener('input', (e) => { subMultiplierValue.textContent = e.target.value; saveState(); });
         followLengthSlider.addEventListener('input', (e) => { followLengthValue.textContent = e.target.value; saveState(); });
         subLengthSlider.addEventListener('input', (e) => { subLengthValue.textContent = e.target.value; saveState(); });
+
+        followLengthValue.addEventListener('blur', function() {
+            let val = parseInt(this.textContent);
+            let max = parseInt(followLengthSlider.max) || 365; 
+            
+            if (isNaN(val) || val < 0) val = 0; 
+            if (val > max) val = max; 
+            
+            this.textContent = val;
+            followLengthSlider.value = val;
+            saveState(); 
+        });
+
+
+        followLengthValue.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.blur(); 
+            }
+        });
+
+        followLengthValue.addEventListener('click', function(e) {
+            if (this.getAttribute('contenteditable') === 'true') {
+                e.preventDefault(); 
+                this.focus(); 
+            }
+        });
 
         updateClaimSettingsState();
 

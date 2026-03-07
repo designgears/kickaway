@@ -600,3 +600,30 @@ body::-webkit-scrollbar-thumb:hover {
         background-color: rgba(255, 255, 255, 0.5);
     }
 }
+
+
+.editable-number {
+    cursor: text;
+    padding: 0 4px;
+    min-width: 25px; 
+    display: inline-block;
+    text-align: center;
+    outline: none;
+
+    text-decoration: underline;
+    text-decoration-style: dashed; 
+    
+
+    text-decoration-color: rgba(83, 252, 24, 0.4); 
+    
+    text-decoration-thickness: 1px; 
+    
+
+    text-underline-offset: 4px; 
+}
+
+
+.editable-number[contenteditable="false"] {
+    cursor: default;
+    text-decoration: none; 
+}
