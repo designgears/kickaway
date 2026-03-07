@@ -958,16 +958,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         setTimeout(() => {
-            const containerStyle = window.getComputedStyle(wheelContainer);
-            const itemStyle = window.getComputedStyle(wheelList.querySelector('li'));
-            const containerHeight = parseFloat(containerStyle.height);
-            const itemHeight = parseFloat(itemStyle.height);
-            const finalY = (containerHeight / 2) - (targetIndex * itemHeight) - (itemHeight / 2);
-            wheelList.style.transform = `translateY(${finalY}px)`;
+            wheelList.style.transform = `translateY(calc(5.3125rem - ${targetIndex * 3.125}rem))`;
         }, 100);
 
         wheelList.addEventListener('transitionend', () => {
             wheelList.classList.add('finished');
+            wheelList.style.transition = 'none'; 
             resolve();
         }, { once: true });
     }
