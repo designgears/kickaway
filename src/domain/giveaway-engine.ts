@@ -8,6 +8,8 @@ import type {
   ParticipantRole,
 } from "@/domain/types";
 
+const MILLISECONDS_PER_MINUTE = 60_000;
+
 const IGNORED_PARTICIPANT_KEYS = new Set([
   "kickbot",
   "streamlabs",
@@ -155,6 +157,7 @@ export function buildParticipant(
   return {
     key: message.usernameKey,
     name: message.username,
+    lastChatAt: message.sentAt,
     isSubscriber,
     followerStatus: "unknown",
     subscriptionMonths,
@@ -233,5 +236,75 @@ export function removeWinnersFromSession(
     participantsByKey: nextParticipants,
     participantOrder: nextOrder,
     entries: nextEntries,
+  };
+}
+
+export function isParticipantWithinChatCutoff(
+  participant: Participant,
+  recentChatCutoffMinutes: number,
+  now = Date.now(),
+) {
+  if (recentChatCutoffMinutes <= 0) {
+    return true;
+  }
+
+  const lastChatTimestamp = Date.parse(participant.lastChatAt);
+  if (Number.isNaN(lastChatTimestamp)) {
+    return false;
+  }
+
+  return (
+    now - lastChatTimestamp <= recentChatCutoffMinutes * MILLISECONDS_PER_MINUTE
+  );
+}
+
+export function pruneParticipantsByActivity(
+  participantsByKey: Record<string, Participant>,
+  participantOrder: string[],
+  entries: string[],
+  recentChatCutoffMinutes: number,
+  now = Date.now(),
+) {
+  if (recentChatCutoffMinutes <= 0) {
+    return {
+      participantsByKey,
+      participantOrder,
+      entries,
+      removedCount: 0,
+    };
+  }
+
+  const expiredKeys = new Set(
+    participantOrder.filter((key) => {
+      const participant = participantsByKey[key];
+      return (
+        participant &&
+        !isParticipantWithinChatCutoff(
+          participant,
+          recentChatCutoffMinutes,
+          now,
+        )
+      );
+    }),
+  );
+
+  if (expiredKeys.size === 0) {
+    return {
+      participantsByKey,
+      participantOrder,
+      entries,
+      removedCount: 0,
+    };
+  }
+
+  return {
+    participantsByKey: Object.fromEntries(
+      Object.entries(participantsByKey).filter(
+        ([key]) => !expiredKeys.has(key),
+      ),
+    ),
+    participantOrder: participantOrder.filter((key) => !expiredKeys.has(key)),
+    entries: entries.filter((key) => !expiredKeys.has(key)),
+    removedCount: expiredKeys.size,
   };
 }

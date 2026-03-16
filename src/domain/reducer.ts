@@ -16,6 +16,7 @@ import {
   normalizeChannelState,
   normalizeSettings,
 } from "@/services/storage";
+import { pruneParticipantsByActivity } from "@/domain/giveaway-engine";
 
 export type AppAction =
   | { type: "set_channel_input"; value: string }
@@ -33,12 +34,19 @@ export type AppAction =
       type: "set_connection_status";
       status: AppState["session"]["connectionStatus"];
     }
-  | { type: "participant_added"; participant: Participant }
+  | { type: "participant_upserted"; participant: Participant }
+  | {
+      type: "participant_activity_refreshed";
+      participantKey: string;
+      username: string;
+      timestamp: string;
+    }
   | {
       type: "participant_follow_status_resolved";
       participantKey: string;
       followerStatus: Participant["followerStatus"];
     }
+  | { type: "prune_inactive_participants"; now: number }
   | { type: "draw_prepare"; overlay: DrawOverlayState }
   | { type: "draw_status"; statusLabel: string }
   | {
@@ -320,8 +328,50 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         },
       };
 
-    case "participant_added": {
-      if (state.session.participantsByKey[action.participant.key]) {
+    case "participant_upserted": {
+      const existingParticipant =
+        state.session.participantsByKey[action.participant.key];
+      const nextParticipant = existingParticipant
+        ? {
+            ...existingParticipant,
+            ...action.participant,
+            followerStatus: existingParticipant.followerStatus,
+          }
+        : action.participant;
+      const nextParticipantOrder = [
+        action.participant.key,
+        ...state.session.participantOrder.filter(
+          (key) => key !== action.participant.key,
+        ),
+      ];
+      const nextEntries = [
+        ...state.session.entries.filter(
+          (key) => key !== action.participant.key,
+        ),
+        ...Array.from(
+          { length: nextParticipant.entryCount },
+          () => action.participant.key,
+        ),
+      ];
+
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          participantsByKey: {
+            ...state.session.participantsByKey,
+            [action.participant.key]: nextParticipant,
+          },
+          participantOrder: nextParticipantOrder,
+          entries: nextEntries,
+        },
+      };
+    }
+
+    case "participant_activity_refreshed": {
+      const participant =
+        state.session.participantsByKey[action.participantKey];
+      if (!participant) {
         return state;
       }
 
@@ -331,17 +381,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ...state.session,
           participantsByKey: {
             ...state.session.participantsByKey,
-            [action.participant.key]: action.participant,
+            [action.participantKey]: {
+              ...participant,
+              name: action.username,
+              lastChatAt: action.timestamp,
+            },
           },
           participantOrder: [
-            action.participant.key,
-            ...state.session.participantOrder,
-          ],
-          entries: [
-            ...state.session.entries,
-            ...Array.from(
-              { length: action.participant.entryCount },
-              () => action.participant.key,
+            action.participantKey,
+            ...state.session.participantOrder.filter(
+              (key) => key !== action.participantKey,
             ),
           ],
         },
@@ -369,6 +418,37 @@ export function appReducer(state: AppState, action: AppAction): AppState {
               followerStatus: action.followerStatus,
             },
           },
+        },
+      };
+    }
+
+    case "prune_inactive_participants": {
+      const recentChatCutoffMinutes =
+        state.session.frozenSettings?.recentChatCutoffMinutes ?? 0;
+
+      if (recentChatCutoffMinutes <= 0) {
+        return state;
+      }
+
+      const nextSession = pruneParticipantsByActivity(
+        state.session.participantsByKey,
+        state.session.participantOrder,
+        state.session.entries,
+        recentChatCutoffMinutes,
+        action.now,
+      );
+
+      if (nextSession.removedCount === 0) {
+        return state;
+      }
+
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          participantsByKey: nextSession.participantsByKey,
+          participantOrder: nextSession.participantOrder,
+          entries: nextSession.entries,
         },
       };
     }

@@ -11,6 +11,7 @@ const audienceFilterModeSchema = z.enum([
 
 export const giveawaySettingsSchema = z.object({
   keyword: z.string(),
+  recentChatCutoffMinutes: z.number().int().min(0).max(120).default(0),
   winnerCount: z.number().int().min(1).max(10),
   subscriberFilter: audienceFilterModeSchema.default("any"),
   moderatorFilter: audienceFilterModeSchema.default("any"),

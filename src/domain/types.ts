@@ -6,6 +6,7 @@ export type AudienceFilterMode = "any" | "include" | "required" | "exclude";
 
 export type GiveawaySettings = {
   keyword: string;
+  recentChatCutoffMinutes: number;
   winnerCount: number;
   subscriberFilter: AudienceFilterMode;
   moderatorFilter: AudienceFilterMode;
@@ -74,6 +75,7 @@ export type KickChatMessage = {
 export type Participant = {
   key: string;
   name: string;
+  lastChatAt: string;
   isSubscriber: boolean;
   followerStatus: FollowerStatus;
   subscriptionMonths: number;

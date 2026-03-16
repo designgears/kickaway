@@ -11,6 +11,7 @@ export const STORAGE_KEY = "kickaway:v1";
 
 export const defaultSettings: GiveawaySettings = {
   keyword: "",
+  recentChatCutoffMinutes: 0,
   winnerCount: 1,
   subscriberFilter: "any",
   moderatorFilter: "any",
@@ -62,6 +63,10 @@ export function normalizeSettings(
   settings: Partial<GiveawaySettings> | undefined,
   maxFollowLength = Number.POSITIVE_INFINITY,
 ): GiveawaySettings {
+  const recentChatCutoffMinutes = Math.min(
+    Math.max(settings?.recentChatCutoffMinutes ?? 0, 0),
+    120,
+  );
   const winnerCount = Math.min(Math.max(settings?.winnerCount ?? 1, 1), 10);
   const subMultiplier = Math.min(Math.max(settings?.subMultiplier ?? 1, 1), 10);
   const moderatorMultiplier = Math.min(
@@ -93,6 +98,7 @@ export function normalizeSettings(
 
   return {
     keyword: settings?.keyword?.trim().toLowerCase() ?? "",
+    recentChatCutoffMinutes,
     winnerCount,
     subscriberFilter: normalizeAudienceFilterMode(settings?.subscriberFilter),
     moderatorFilter: normalizeAudienceFilterMode(settings?.moderatorFilter),

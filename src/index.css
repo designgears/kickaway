@@ -180,44 +180,6 @@
   will-change: transform, opacity;
 }
 
-.kick-range-slider {
-  appearance: none;
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: color-mix(in oklab, var(--color-primary) 18%, transparent);
-}
-
-.kick-range-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  background: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(83, 255, 118, 0.12);
-}
-
-.kick-range-slider::-moz-range-thumb {
-  width: 0.9rem;
-  height: 0.9rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  background: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(83, 255, 118, 0.12);
-}
-
-.kick-range-slider::-webkit-slider-runnable-track {
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.kick-range-slider::-moz-range-track {
-  height: 0.5rem;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-}
-
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto;

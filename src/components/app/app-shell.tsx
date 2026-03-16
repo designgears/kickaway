@@ -612,6 +612,17 @@ function SettingsFields({ disabled }: { disabled: boolean }) {
                 />
               </div>
               <RangeField
+                label={copy.recentChatCutoffLabel}
+                value={currentSettings.recentChatCutoffMinutes}
+                min={0}
+                max={120}
+                disabled={disabled}
+                suffix={copy.minutesShort}
+                onChange={(value) =>
+                  setSetting("recentChatCutoffMinutes", value)
+                }
+              />
+              <RangeField
                 label={copy.winnerCountLabel}
                 value={currentSettings.winnerCount}
                 min={1}
@@ -869,6 +880,9 @@ function ParticipantsPanel() {
 
   const keyword =
     state.session.frozenSettings?.keyword ?? currentSettings.keyword;
+  const recentChatCutoffMinutes =
+    state.session.frozenSettings?.recentChatCutoffMinutes ??
+    currentSettings.recentChatCutoffMinutes;
 
   return (
     <Card size="sm" className="kick-panel">
@@ -955,6 +969,11 @@ function ParticipantsPanel() {
           <Badge variant="outline" className="kick-accent-chip bg-transparent">
             {keyword === "" ? copy.anyMessage : `"${keyword}"`}
           </Badge>
+          {recentChatCutoffMinutes > 0 ? (
+            <Badge variant="outline">
+              Last {recentChatCutoffMinutes} {copy.minutesShort}
+            </Badge>
+          ) : null}
           <Badge variant="outline">
             {state.session.participantOrder.length} {copy.participantsTitle}
           </Badge>

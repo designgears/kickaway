@@ -12,6 +12,7 @@ import {
   drawWinnersFromPool,
   expandEntries,
   matchesKeyword,
+  pruneParticipantsByActivity,
   removeWinnersFromSession,
   shouldIgnoreParticipant,
 } from "@/domain/giveaway-engine";
@@ -176,8 +177,15 @@ export function GiveawayProvider({
       return;
     }
 
-    if (currentState.session.participantsByKey[message.usernameKey]) {
-      return;
+    const existingParticipant =
+      currentState.session.participantsByKey[message.usernameKey];
+    if (existingParticipant) {
+      dispatch({
+        type: "participant_activity_refreshed",
+        participantKey: message.usernameKey,
+        username: message.username,
+        timestamp: message.sentAt,
+      });
     }
 
     if (
@@ -198,7 +206,7 @@ export function GiveawayProvider({
     }
 
     dispatch({
-      type: "participant_added",
+      type: "participant_upserted",
       participant: {
         ...participant,
         entryCount: expandEntries(participant).length,
@@ -206,10 +214,35 @@ export function GiveawayProvider({
     });
 
     const channelSlug = currentState.currentChannel?.slug;
-    if (channelSlug) {
+    if (channelSlug && !existingParticipant) {
       resolveParticipantFollowerStatus(channelSlug, participant.key);
     }
   };
+
+  useEffect(() => {
+    if (
+      !state.session.running ||
+      !state.session.frozenSettings ||
+      state.session.frozenSettings.recentChatCutoffMinutes <= 0
+    ) {
+      return;
+    }
+
+    const pruneInactiveParticipants = () => {
+      dispatch({ type: "prune_inactive_participants", now: Date.now() });
+    };
+
+    pruneInactiveParticipants();
+    const timer = window.setInterval(pruneInactiveParticipants, 5000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [
+    state.session.running,
+    state.session.frozenSettings,
+    state.session.frozenSettings?.recentChatCutoffMinutes,
+  ]);
 
   useEffect(() => {
     if (!state.session.claim || state.session.claim.status !== "pending") {
@@ -284,29 +317,46 @@ export function GiveawayProvider({
   };
 
   const drawWinners = async () => {
+    const currentState = stateRef.current;
     if (
-      !state.currentChannel ||
-      !state.session.running ||
-      state.session.drawInProgress
+      !currentState.currentChannel ||
+      !currentState.session.running ||
+      currentState.session.drawInProgress
     ) {
       return;
     }
 
-    const uniqueCount = new Set(state.session.entries).size;
+    const recentChatCutoffMinutes =
+      currentState.session.frozenSettings?.recentChatCutoffMinutes ?? 0;
+    const activeSession = pruneParticipantsByActivity(
+      currentState.session.participantsByKey,
+      currentState.session.participantOrder,
+      currentState.session.entries,
+      recentChatCutoffMinutes,
+      Date.now(),
+    );
+
+    if (activeSession.removedCount > 0) {
+      dispatch({ type: "prune_inactive_participants", now: Date.now() });
+    }
+
+    const uniqueCount = new Set(activeSession.entries).size;
     if (uniqueCount === 0) {
       window.alert(copy.drawNoParticipants);
       return;
     }
 
-    const requestedCount = Math.min(currentSettings.winnerCount, uniqueCount);
-    const claimAfterClose = currentSettings.winnerClaim && requestedCount === 1;
+    const frozenSettings =
+      currentState.session.frozenSettings ?? currentSettings;
+    const requestedCount = Math.min(frozenSettings.winnerCount, uniqueCount);
+    const claimAfterClose = frozenSettings.winnerClaim && requestedCount === 1;
 
     dispatch({
       type: "draw_prepare",
       overlay: {
         requestedCount,
         statusLabel: copy.drawPendingTitle,
-        poolSnapshot: [...state.session.entries],
+        poolSnapshot: [...activeSession.entries],
         claimAfterClose,
         cards: Array.from({ length: requestedCount }, (_, index) => ({
           id: `card-${index}`,
@@ -321,10 +371,10 @@ export function GiveawayProvider({
 
     try {
       const result = await drawWinnersFromPool({
-        entries: state.session.entries,
+        entries: activeSession.entries,
         requestedCount,
-        channelSlug: state.currentChannel.slug,
-        minFollowDays: currentSettings.followLengthDays,
+        channelSlug: currentState.currentChannel.slug,
+        minFollowDays: frozenSettings.followLengthDays,
         checkFollowAge: apiClientRef.current.checkFollowAge,
         onCandidateCheck: (candidateKey) => {
           dispatch({
@@ -341,7 +391,7 @@ export function GiveawayProvider({
       }
 
       const winners: WinnerRecord[] = result.winnerKeys.map((winnerKey) => ({
-        name: state.session.participantsByKey[winnerKey]?.name ?? winnerKey,
+        name: activeSession.participantsByKey[winnerKey]?.name ?? winnerKey,
         timestamp: new Date().toISOString(),
         claimStatus: claimAfterClose ? "pending" : "confirmed",
       }));
@@ -350,16 +400,16 @@ export function GiveawayProvider({
         id: `card-${index}`,
         winnerKey,
         winnerName:
-          state.session.participantsByKey[winnerKey]?.name ?? winnerKey,
+          activeSession.participantsByKey[winnerKey]?.name ?? winnerKey,
         chatLog: [],
         revealed: false,
         acknowledged: false,
       }));
 
       const nextSession = removeWinnersFromSession(
-        state.session.participantsByKey,
-        state.session.participantOrder,
-        state.session.entries,
+        activeSession.participantsByKey,
+        activeSession.participantOrder,
+        activeSession.entries,
         result.winnerKeys,
       );
 
