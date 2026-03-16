@@ -1,10 +1,13 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import App from "@/App";
+import "@/index.css";
+import { GiveawayProvider } from "@/context/giveaway-context";
 
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <GiveawayProvider>
+      <App />
+    </GiveawayProvider>
   </StrictMode>,
-)
+);
